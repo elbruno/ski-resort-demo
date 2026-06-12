@@ -6,8 +6,51 @@ Quick runbook to fix the Aspire **"can pick tenant but subscription is empty"** 
 
 - Azure CLI installed
 - Aspire CLI installed
+- **Go installed** (required by `datagenerator` — see step 0 below)
 - Logged into Azure
 - You have permission on the target subscription
+
+## 0) Install Go if missing (required for datagenerator)
+
+`datagenerator` runs `go mod tidy` at startup; if Go is not in PATH it will `FailedToStart`
+and cascade-block all agents (they all end up `Waiting`).
+
+Check first:
+
+```powershell
+go version
+```
+
+If missing, install via winget (requires admin) or portable (no admin needed):
+
+**Via winget (recommended if you have admin):**
+
+```powershell
+winget install --id GoLang.Go -e --accept-package-agreements --accept-source-agreements
+# restart terminal after install
+```
+
+**Portable (no admin required):**
+
+```powershell
+$goVersion = '1.26.4'
+$zipUrl = "https://go.dev/dl/go$goVersion.windows-amd64.zip"
+$targetRoot = Join-Path $env:USERPROFILE 'tools'
+$zipPath = Join-Path $targetRoot "go$goVersion.windows-amd64.zip"
+$extractPath = Join-Path $targetRoot "go$goVersion"
+New-Item -ItemType Directory -Path $targetRoot -Force | Out-Null
+Invoke-WebRequest -Uri $zipUrl -OutFile $zipPath
+Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
+$goBin = Join-Path $extractPath 'go\bin'
+
+# Add to permanent user PATH
+$currentPath = [System.Environment]::GetEnvironmentVariable('PATH','User')
+[System.Environment]::SetEnvironmentVariable('PATH', "$goBin;$currentPath", 'User')
+$env:PATH = "$goBin;$env:PATH"
+go version
+```
+
+After installing Go, restart Aspire (`aspire stop; aspire start --non-interactive`).
 
 ## 1) Sign in and validate subscription (CLI context)
 
