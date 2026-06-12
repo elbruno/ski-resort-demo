@@ -1,0 +1,48 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "aspire",
+            "request": "launch",
+            "name": "Aspire: Launch AppHost",
+            "program": "${workspaceFolder}/src"
+        },
+        {
+            "type": "aspire",
+            "request": "launch",
+            "name": "Aspire: Deploy AppHost",
+            "program": "${workspaceFolder}/src",
+            "command": "deploy",
+            "debuggers": {
+                "project": {
+                    "console": "integratedTerminal"
+                },
+                "python": {
+                    "justMyCode": false
+                }
+            }
+        },
+        {
+            "type": "aspire",
+            "request": "launch",
+            "name": "Aspire: Publish AppHost",
+            "program": "${workspaceFolder}/src",
+            "command": "publish"
+        },
+        {
+            "type": "aspire",
+            "request": "launch",
+            "name": "Aspire: Run pipeline step",
+            "program": "${workspaceFolder}/src",
+            "command": "do",
+            "step": "${input:aspirePipelineStepName}"
+        }
+    ],
+    "inputs": [
+        {
+            "id": "aspirePipelineStepName",
+            "type": "promptString",
+            "description": "Aspire pipeline step name to execute"
+        }
+    ]
+}

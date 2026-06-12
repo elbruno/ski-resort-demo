@@ -1,0 +1,8 @@
+{
+    "recommendations": [
+        "microsoft-aspire.aspire-vscode",
+        "ms-dotnettools.csdevkit",
+        "ms-python.python",
+        "ms-azuretools.vscode-azurefunctions"
+    ]
+}

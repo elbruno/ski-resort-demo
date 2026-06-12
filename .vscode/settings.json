@@ -1,0 +1,5 @@
+{
+    "aspire.registerMcpServerInWorkspace": true,
+    "aspire.enableAspireDashboardAutoLaunch": "launch",
+    "aspire.dashboardBrowser": "openExternalBrowser"
+}
