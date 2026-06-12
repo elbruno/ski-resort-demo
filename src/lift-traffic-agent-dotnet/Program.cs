@@ -15,11 +15,28 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
+var credentialOptions = new DefaultAzureCredentialOptions
+{
+    // Prefer Azure CLI / env-based auth in local dev to avoid IDE credential tenant mismatches.
+    ExcludeVisualStudioCredential = true,
+    ExcludeVisualStudioCodeCredential = true,
+    ExcludeSharedTokenCacheCredential = true,
+    ExcludeInteractiveBrowserCredential = true
+};
+
+var tenantId = Environment.GetEnvironmentVariable("AZURE_TENANT_ID");
+if (!string.IsNullOrWhiteSpace(tenantId))
+{
+    credentialOptions.TenantId = tenantId;
+}
+
+var credential = new DefaultAzureCredential(credentialOptions);
+
 // Configure Azure chat client
 builder.AddAzureChatCompletionsClient(connectionName: "gpt41",
     configureSettings: settings =>
     {
-        settings.TokenCredential = new DefaultAzureCredential();
+        settings.TokenCredential = credential;
         settings.EnableSensitiveTelemetryData = true;
     })
     .AddChatClient();

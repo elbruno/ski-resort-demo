@@ -15,6 +15,9 @@ using Aspire.Hosting.Foundry;
 
 var builder = DistributedApplication.CreateBuilder(args);
 const string A2AAgentBaseUrlEnvironmentVariable = "A2A_AGENT_BASE_URL";
+const string AzureTenantIdEnvironmentVariable = "AZURE_TENANT_ID";
+var azureTenantId = Environment.GetEnvironmentVariable(AzureTenantIdEnvironmentVariable)
+    ?? "a0eaf323-ba84-4da5-96f1-a110978978f2";
 
 var aca = builder.AddAzureContainerAppEnvironment("aca");
 
@@ -27,7 +30,7 @@ var voiceDeployment = project.AddModelDeployment("gptrealtime", FoundryModel.Ope
 
 var webSearch = project.AddWebSearchTool("websearch");
 
-var skiResearcher =project.AddPromptAgent("skiresearcher", deployment,
+var skiResearcher = project.AddPromptAgent("skiresearcher", deployment,
     instructions: """You are a ski researcher agent. Your job is to research and provide information about ski.""")
     .WithTool(webSearch);
 
@@ -96,6 +99,7 @@ var liftAgent = builder.AddProject<Projects.LiftTrafficAgent_Dotnet>("lifttraffi
     .WithExternalHttpEndpoints()
     .WithReference(deployment).WaitFor(deployment)
     .WithReference(dataGenerator).WaitFor(dataGenerator)
+    .WithEnvironment(AzureTenantIdEnvironmentVariable, azureTenantId)
     .WithComputeEnvironment(aca);
 liftAgent.WithEnvironment(A2AAgentBaseUrlEnvironmentVariable, liftAgent.GetEndpoint("http"));
 
@@ -109,6 +113,7 @@ var advisorAgent = builder.AddProject<Projects.AdvisorAgent_Dotnet>("advisoragen
     .WithReference(safetyAgent).WaitFor(safetyAgent)
     .WithReference(coachAgent).WaitFor(coachAgent)
     .WithReference(skiResearcher).WaitFor(skiResearcher)
+    .WithEnvironment(AzureTenantIdEnvironmentVariable, azureTenantId)
     .AsHostedAgent(project);
 
 // ---------------------------------------------------------------------------
@@ -124,6 +129,7 @@ var voiceAdvisorAgent = builder.AddProject<Projects.VoiceAdvisorAgent>("voiceadv
     .WithReference(safetyAgent).WaitFor(safetyAgent)
     .WithReference(coachAgent).WaitFor(coachAgent)
     .WithReference(skiResearcher).WaitFor(skiResearcher)
+    .WithEnvironment(AzureTenantIdEnvironmentVariable, azureTenantId)
     .WithComputeEnvironment(aca);
 
 // ---------------------------------------------------------------------------

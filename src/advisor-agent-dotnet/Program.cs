@@ -31,7 +31,22 @@ if (!Uri.TryCreate(projectEndpoint, UriKind.Absolute, out var projectUri) || pro
     throw new InvalidOperationException("ConnectionStrings__projvoiceskiresort contains an invalid Endpoint value.");
 }
 
-var credential = new DefaultAzureCredential();
+var credentialOptions = new DefaultAzureCredentialOptions
+{
+    // Prefer Azure CLI / env-based auth in local dev to avoid IDE credential tenant mismatches.
+    ExcludeVisualStudioCredential = true,
+    ExcludeVisualStudioCodeCredential = true,
+    ExcludeSharedTokenCacheCredential = true,
+    ExcludeInteractiveBrowserCredential = true
+};
+
+var tenantId = Environment.GetEnvironmentVariable("AZURE_TENANT_ID");
+if (!string.IsNullOrWhiteSpace(tenantId))
+{
+    credentialOptions.TenantId = tenantId;
+}
+
+var credential = new DefaultAzureCredential(credentialOptions);
 
 // Helper to resolve a remote agent via A2A
 AIAgent ResolveA2AAgent(string envVar, string cardPath = "/.well-known/agent-card.json", string? endpointPath = null)
@@ -54,8 +69,8 @@ static string AppendPath(string url, string path)
     => $"{url.TrimEnd('/')}/{path.TrimStart('/')}";
 
 // Connect to specialist agents via A2A
-var weatherAgent = ResolveA2AAgent(Environment.GetEnvironmentVariable("services__weatheragent__https__0") != null 
-    ? "services__weatheragent__https__0" 
+var weatherAgent = ResolveA2AAgent(Environment.GetEnvironmentVariable("services__weatheragent__https__0") != null
+    ? "services__weatheragent__https__0"
     : "services__weatheragent__http__0");
 var liftAgent = ResolveA2AAgent(Environment.GetEnvironmentVariable("services__lifttrafficagent__https__0") != null
         ? "services__lifttrafficagent__https__0"
@@ -73,7 +88,7 @@ var skiResearcherAgentReference = new AgentReference(name: Environment.GetEnviro
 var responseClient = foundryProjectClient.ProjectOpenAIClient.GetProjectResponsesClientForAgent(skiResearcherAgentReference);
 var skiResearcherAgent = responseClient.AsIChatClient("gpt41").AsAIAgent(Environment.GetEnvironmentVariable("SKIRESEARCHER_AGENTNAME"), description: "I can search the web. Use me for any generic question about skiing.");
 
-var agent = new AIProjectClient(new Uri(projectEndpoint), new DefaultAzureCredential())
+var agent = new AIProjectClient(new Uri(projectEndpoint), credential)
     .GetProjectOpenAIClient()
     .GetProjectResponsesClient()
     .AsIChatClient(deploymentName) // Converts into a Microsoft.Extensions.AI.IChatClient

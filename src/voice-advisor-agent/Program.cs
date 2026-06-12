@@ -62,6 +62,23 @@ if (!Uri.TryCreate(projectEndpoint, UriKind.Absolute, out var projectUri) || pro
     throw new InvalidOperationException("ConnectionStrings__projvoiceskiresort contains an invalid Endpoint value.");
 }
 
+var credentialOptions = new DefaultAzureCredentialOptions
+{
+    // Prefer Azure CLI / env-based auth in local dev to avoid IDE credential tenant mismatches.
+    ExcludeVisualStudioCredential = true,
+    ExcludeVisualStudioCodeCredential = true,
+    ExcludeSharedTokenCacheCredential = true,
+    ExcludeInteractiveBrowserCredential = true
+};
+
+var tenantId = Environment.GetEnvironmentVariable("AZURE_TENANT_ID");
+if (!string.IsNullOrWhiteSpace(tenantId))
+{
+    credentialOptions.TenantId = tenantId;
+}
+
+var credential = new DefaultAzureCredential(credentialOptions);
+
 // Connect to downstream agents via A2A
 var agents = new Dictionary<string, AIAgent>();
 
@@ -100,7 +117,7 @@ foreach (var (agentName, config) in agentConfigs)
 
 var skiResearcherAgentName = Environment.GetEnvironmentVariable("SKIRESEARCHER_AGENTNAME")
     ?? throw new InvalidOperationException("SKIRESEARCHER_AGENTNAME is not set.");
-var foundryProjectClient = new AIProjectClient(projectUri, new DefaultAzureCredential());
+var foundryProjectClient = new AIProjectClient(projectUri, credential);
 var skiResearcherAgentReference = new AgentReference(name: skiResearcherAgentName);
 var responseClient = foundryProjectClient.ProjectOpenAIClient.GetProjectResponsesClientForAgent(skiResearcherAgentReference);
 agents["ski_researcher_agent"] = responseClient
@@ -108,7 +125,7 @@ agents["ski_researcher_agent"] = responseClient
     .AsAIAgent("ski_researcher_agent", description: "I can search the web. Use me for any generic question about skiing.");
 
 builder.Services.AddSingleton(agents);
-builder.Services.AddSingleton(new DefaultAzureCredential());
+builder.Services.AddSingleton(credential);
 
 var systemPrompt = File.ReadAllText(
     Path.Combine(builder.Environment.ContentRootPath, "Prompts", "system-prompt.txt"));
