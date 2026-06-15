@@ -65,6 +65,7 @@ var weatherAgent = builder.AddUvicornApp("weatheragent", "./weather-agent-python
     .WithHttpHealthCheck("/health")
     .WithReference(deployment).WaitFor(deployment)
     .WithReference(dataGenerator).WaitFor(dataGenerator)
+    .WithEnvironment(AzureTenantIdEnvironmentVariable, azureTenantId)
     .WithComputeEnvironment(aca);
 weatherAgent.WithEnvironment(A2AAgentBaseUrlEnvironmentVariable, weatherAgent.GetEndpoint("http"));
 
@@ -77,6 +78,7 @@ var safetyAgent = builder.AddUvicornApp("safetyagent", "./safety-agent-python", 
     .WithHttpHealthCheck("/health")
     .WithReference(deployment).WaitFor(deployment)
     .WithReference(dataGenerator).WaitFor(dataGenerator)
+    .WithEnvironment(AzureTenantIdEnvironmentVariable, azureTenantId)
     .WithComputeEnvironment(aca);
 safetyAgent.WithEnvironment(A2AAgentBaseUrlEnvironmentVariable, safetyAgent.GetEndpoint("http"));
 
@@ -89,6 +91,7 @@ var coachAgent = builder.AddUvicornApp("skicoachagent", "./ski-coach-agent-pytho
     .WithHttpHealthCheck("/health")
     .WithReference(deployment).WaitFor(deployment)
     .WithReference(dataGenerator).WaitFor(dataGenerator)
+    .WithEnvironment(AzureTenantIdEnvironmentVariable, azureTenantId)
     .WithComputeEnvironment(aca);
 coachAgent.WithEnvironment(A2AAgentBaseUrlEnvironmentVariable, coachAgent.GetEndpoint("http"));
 

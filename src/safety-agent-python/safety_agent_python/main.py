@@ -161,7 +161,7 @@ def main():
     host = os.environ.get("HOST", "0.0.0.0")
 
     logger.info(f"Safety Agent starting on http://{host}:{port}")
-    uvicorn.run(app, host=host, port=port, log_level="info")
+    uvicorn.run(app, host=host, port=port, log_level="info", reload=False)
 
 
 if __name__ == "__main__":

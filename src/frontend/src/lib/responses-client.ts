@@ -8,6 +8,7 @@ const ADVISOR_AGENT_NAME = 'advisoragent-ha';
 interface ResponseStreamPayload {
   type?: string;
   delta?: string;
+  text?: string;
   conversation_id?: string;
   response?: { id?: string; output_text?: string; conversation_id?: string; conversation?: { id?: string } };
   item?: { id?: string; type?: string; role?: string; content?: Array<{ text?: string; type?: string }> };
@@ -15,53 +16,8 @@ interface ResponseStreamPayload {
   output_index?: number;
 }
 
-function extractContent(payload: ResponseStreamPayload): string | undefined {
-  if (payload.type === 'response.output_text.delta' && typeof payload.delta === 'string') {
-    return payload.delta;
-  }
-
-  return undefined;
-}
-
 function extractContextId(payload: ResponseStreamPayload): string | undefined {
   return payload.conversation_id ?? payload.response?.conversation_id ?? payload.response?.conversation?.id;
-}
-
-async function* parseSseStream(stream: ReadableStream<Uint8Array>): AsyncGenerator<ResponseStreamPayload> {
-  const reader = stream.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-
-  try {
-    while (true) {
-      const { value, done } = await reader.read();
-      buffer += decoder.decode(value, { stream: !done });
-
-      let boundary = buffer.indexOf('\n\n');
-      while (boundary !== -1) {
-        const rawEvent = buffer.slice(0, boundary).trim();
-        buffer = buffer.slice(boundary + 2);
-
-        const data = rawEvent
-          .split('\n')
-          .filter((line) => line.startsWith('data:'))
-          .map((line) => line.slice(5).trim())
-          .join('\n');
-
-        if (data && data !== '[DONE]') {
-          yield JSON.parse(data) as ResponseStreamPayload;
-        }
-
-        boundary = buffer.indexOf('\n\n');
-      }
-
-      if (done) {
-        break;
-      }
-    }
-  } finally {
-    reader.releaseLock();
-  }
 }
 
 export async function* sendMessageStream(
@@ -78,7 +34,10 @@ export async function* sendMessageStream(
         content: [{ type: 'input_text', text }],
       },
     ],
-    stream: true,
+    // NOTE: SSE streaming from the local dev proxy can occasionally remain open
+    // after completion, leaving the UI in a perpetual "thinking" state.
+    // Use non-streaming mode for deterministic completion in the dashboard chat.
+    stream: false,
     metadata: { entity_id: ADVISOR_AGENT_NAME },
   };
 
@@ -89,7 +48,7 @@ export async function* sendMessageStream(
   const response = await fetch('/responses', {
     method: 'POST',
     headers: {
-      Accept: 'text/event-stream',
+      Accept: 'application/json',
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(requestBody),
@@ -100,18 +59,28 @@ export async function* sendMessageStream(
     throw new Error(`Responses API request failed: ${response.status}${errorText ? ` ${errorText}` : ''}`);
   }
 
-  if (!response.body) {
-    throw new Error('Responses API did not return a stream.');
+  const payload = (await response.json()) as ResponseStreamPayload & {
+    output?: Array<{
+      type?: string;
+      content?: Array<{ type?: string; text?: string }>;
+    }>;
+    output_text?: string;
+  };
+
+  const nextContextId = extractContextId(payload) ?? contextId;
+
+  let content = payload.output_text;
+  if (!content && Array.isArray(payload.output)) {
+    const lastMessage = [...payload.output].reverse().find((item) => item.type === 'message');
+    const outputTextPart = lastMessage?.content?.find((part) => part.type === 'output_text');
+    content = outputTextPart?.text;
   }
 
-  for await (const payload of parseSseStream(response.body)) {
-    const nextContextId = extractContextId(payload) ?? contextId;
-    const content = extractContent(payload);
-
-    if (nextContextId || content) {
-      yield { content, contextId: nextContextId };
-    }
+  if (!content && !nextContextId) {
+    throw new Error('Responses API returned no assistant content.');
   }
+
+  yield { content, contextId: nextContextId };
 }
 
 export function resetClient() {
